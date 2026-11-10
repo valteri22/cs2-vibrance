@@ -1,0 +1,44 @@
+
+name: Build Release
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+          cache: false
+
+      - name: Run tests
+        run: go test ./...
+
+      - name: Generate icon
+        run: go run ./tools/packicon
+
+      - name: Build executable
+        run: go build -trimpath -ldflags="-H windowsgui" -o CS2Vibrance.exe .
+
+      - name: Package executable
+        shell: pwsh
+        run: |
+          Compress-Archive -Path CS2Vibrance.exe -DestinationPath "CS2Vibrance-$env:GITHUB_REF_NAME-win64.zip"
+
+      - name: Upload to release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload "$env:GITHUB_REF_NAME" "CS2Vibrance-$env:GITHUB_REF_NAME-win64.zip"
