@@ -21,6 +21,8 @@ No precompiled binaries included. Fully open source.
 
 ### Usage
 
+Download the .zip from [releases](https://github.com/valteri22/cs2-vibrance/releases/tag/v1.0.0) containing the program and unzip it to your desired location.
+
 Run `CS2Vibrance.exe`, choose your vibrance, and close the window to minimize to tray.
 
 - **Left-click tray icon:** Open settings
