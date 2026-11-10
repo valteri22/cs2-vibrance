@@ -1,10 +1,6 @@
 package main
 
-// packicon generates a Windows AMD64 .syso COFF resource object from an ICO.
-// It runs at build time only. Windows Explorer and the app's tray icon then
-// use the same group icon (resource ID 1). No third-party tool is necessary.
-//
-// Usage: go run ./tools/packicon
+// Generates the Windows icon resource from assets/icon.ico.
 
 import (
 	"encoding/binary"
@@ -16,7 +12,7 @@ import (
 var le = binary.LittleEndian
 
 type icon struct {
-	info []byte // 16-byte ICONDIRENTRY from ICO
+	info []byte // ICO directory entry
 	data []byte
 }
 
@@ -58,7 +54,7 @@ func (r *resource) alloc(n int) int {
 }
 func (r *resource) directory(entries int) int {
 	off := r.alloc(16 + 8*entries)
-	put16(r.data, off+14, uint16(entries)) // NumberOfIdEntries
+	put16(r.data, off+14, uint16(entries))
 	return off
 }
 func (r *resource) entry(dir, index int, id, target uint32, isDirectory bool) {
@@ -73,7 +69,7 @@ func (r *resource) dataEntry(payload []byte) int {
 	entry := r.alloc(16)
 	start := r.alloc(len(payload))
 	copy(r.data[start:], payload)
-	put32(r.data, entry, uint32(start)) // COFF relocation adds .rsrc RVA
+	put32(r.data, entry, uint32(start)) // Linker adds the .rsrc RVA.
 	put32(r.data, entry+4, uint32(len(payload)))
 	r.relocs = append(r.relocs, uint32(entry))
 	return entry
@@ -94,7 +90,7 @@ func buildResource(icons []icon) *resource {
 		r.entry(lang, 0, 0x409, uint32(data), false)
 	}
 
-	// GRPICONDIR: 6 bytes + 14-byte GRPICONDIRENTRY per image.
+	// One group entry for each icon size.
 	group := make([]byte, 6+14*len(icons))
 	put16(group, 2, 1)
 	put16(group, 4, uint16(len(icons)))
@@ -118,15 +114,15 @@ func coff(r *resource) []byte {
 	rawSize := len(r.data)
 	relocPtr := headerSize + rawSize
 	symbolPtr := relocPtr + 10*len(r.relocs)
-	out := make([]byte, symbolPtr+36+4) // 2 COFF symbol records + 4-byte string table
+	out := make([]byte, symbolPtr+36+4)
 
-	// COFF file header (AMD64, one .rsrc section).
+	// COFF header for Windows x64.
 	put16(out, 0, 0x8664)
 	put16(out, 2, 1)
 	put32(out, 8, uint32(symbolPtr))
 	put32(out, 12, 2)
 
-	// IMAGE_SECTION_HEADER, initialized read-only data.
+	// Read-only .rsrc section.
 	copy(out[20:28], []byte(".rsrc"))
 	put32(out, 20+16, uint32(rawSize))
 	put32(out, 20+20, headerSize)
@@ -138,18 +134,18 @@ func coff(r *resource) []byte {
 	for i, address := range r.relocs {
 		at := relocPtr + i*10
 		put32(out, at, address)
-		put32(out, at+4, 0)      // section symbol index
+		put32(out, at+4, 0)
 		put16(out, at+8, 0x0003) // IMAGE_REL_AMD64_ADDR32NB
 	}
 
-	// Section symbol and its auxiliary definition.
+	// Section symbol and extra record.
 	copy(out[symbolPtr:symbolPtr+8], []byte(".rsrc"))
 	put16(out, symbolPtr+12, 1)
-	out[symbolPtr+16] = 3 // IMAGE_SYM_CLASS_STATIC
-	out[symbolPtr+17] = 1 // one aux record
+	out[symbolPtr+16] = 3
+	out[symbolPtr+17] = 1
 	put32(out, symbolPtr+18, uint32(rawSize))
 	put16(out, symbolPtr+18+4, uint16(len(r.relocs)))
-	put32(out, symbolPtr+36, 4) // empty COFF string table
+	put32(out, symbolPtr+36, 4)
 	return out
 }
 

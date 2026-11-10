@@ -2,10 +2,6 @@
 
 package main
 
-// A deliberately small, native Win32 UI. There are no web views, animations,
-// background rendering loops, fonts to download, or UI dependencies.
-// Mouse and keyboard controls use the same interaction/state path.
-
 import (
 	"fmt"
 	"strings"
@@ -75,7 +71,7 @@ var (
 	pBitBlt                 = gdi32.NewProc("BitBlt")
 )
 
-// COLORREF expects BGR data, not RGB.
+// Win32 COLORREF uses 0x00BBGGRR.
 func rgb(r, g, b byte) uintptr { return uintptr(uint32(r) | uint32(g)<<8 | uint32(b)<<16) }
 
 var (
@@ -103,7 +99,6 @@ func uiFont(height int32, weight int32) uintptr {
 }
 
 func setDarkTitleBar(hwnd uintptr) {
-	// Officially supported on Windows 11; older versions simply ignore errors.
 	var on int32 = 1
 	pDwmSetWindowAttribute.Call(hwnd, 20, uintptr(unsafe.Pointer(&on)), unsafe.Sizeof(on))
 }
@@ -175,7 +170,6 @@ func paintUI(hwnd uintptr) {
 	pSetBkMode.Call(mem, TRANSPARENT)
 	fillRect(mem, r, colorBG)
 
-	// One adjustable value; neutral/default is annotated below the slider.
 	drawText(mem, "Digital Vibrance", 22, 22, app.boldFont, colorText)
 	drawText(mem, fmt.Sprintf("%d%%", app.uiValue), width-74, 21, app.boldFont, colorText)
 	left, right := int32(23), width-23
@@ -212,7 +206,6 @@ func paintUI(hwnd uintptr) {
 	}
 	drawText(mem, "Start with Windows", 49, 151, app.font, colorText)
 
-	// Visible system status, no progress bar or unnecessary buttons.
 	fillRect(mem, rect{22, 183, width - 22, 184}, colorBorder)
 	statusColor := colorMuted
 	status := app.uiStatus
@@ -273,7 +266,7 @@ func commitValue() {
 		return
 	}
 	app.lastError = ""
-	tick(true) // No NVIDIA reads/writes if CS2 is closed and no restore is pending.
+	tick(true)
 	invalidateUI()
 }
 func toggleStartup() {

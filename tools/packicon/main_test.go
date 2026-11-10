@@ -6,7 +6,7 @@ import (
 )
 
 func TestPackResource(t *testing.T) {
-	// Minimal icon directory containing 4 arbitrary payload bytes.
+	// A small fake ICO is enough to test the resource format.
 	ico := make([]byte, 6+16+4)
 	le.PutUint16(ico[2:4], 1)
 	le.PutUint16(ico[4:6], 1)

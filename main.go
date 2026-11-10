@@ -1,7 +1,5 @@
 //go:build windows
 
-// CS2 Vibrance - lightweight, source-first NVIDIA Digital Vibrance watcher.
-// It makes no network connections and does not interact with CS2's memory.
 package main
 
 import (
@@ -56,7 +54,6 @@ const (
 	REG_SZ             = 1
 )
 
-// Only the CS2 level and optional autostart are configured.
 type settings struct {
 	Game      int  `json:"game_vibrance"`
 	Autostart bool `json:"start_with_windows"`
@@ -90,21 +87,20 @@ func initConfig() error {
 	dir, err := os.UserConfigDir()
 	if err != nil {
 		return err
-	} // never store recovery data in a temporary folder
+	}
 	dir = filepath.Join(dir, "CS2Vibrance")
 	cfgFile = filepath.Join(dir, "settings.json")
 	sessionFile = filepath.Join(dir, "restore-session.json")
 	b, err := os.ReadFile(cfgFile)
 	if errors.Is(err, os.ErrNotExist) {
-		// Import the two compatible settings from the previous version once.
-		// Recovery is not imported: finish the old version before upgrading.
+		// Only bring over the old settings, not its recovery session.
 		old := filepath.Join(filepath.Dir(dir), "CS2VibranceLite", "settings.json")
 		if legacy, readErr := os.ReadFile(old); readErr == nil {
 			b, err = legacy, nil
 		}
 	}
 	if err == nil {
-		// Decode over defaults: an old config or a missing field keeps default behavior.
+		// Keep the defaults for any missing fields.
 		if err := json.Unmarshal(b, &cfg); err != nil {
 			return fmt.Errorf("settings.json: %w", err)
 		}
@@ -122,12 +118,11 @@ func writeJSON(path string, v any) error {
 	if err != nil {
 		return err
 	}
-	// Atomic replacement reduces the chance of losing restore data on a crash.
+	// Write to a temp file first so a crash is less likely to break recovery.
 	tmp := path + ".tmp"
 	if err := os.WriteFile(tmp, b, 0600); err != nil {
 		return err
 	}
-	// Go uses a replace-on-rename operation on Windows.
 	if err := os.Rename(tmp, path); err != nil {
 		_ = os.Remove(tmp)
 		return err
@@ -156,7 +151,7 @@ func loadSession() ([]displaySnapshot, error) {
 	if len(rs.Displays) == 0 {
 		return nil, errors.New("empty restore-session.json")
 	}
-	// Never ignore malformed restore data: better to stop than accidentally overwrite it.
+	// Don't restore from a broken snapshot.
 	for _, s := range rs.Displays {
 		if s.Index < 0 || s.Index >= 32 {
 			return nil, errors.New("invalid display index in recovery snapshot")
@@ -262,7 +257,7 @@ type processEntry struct {
 	ExeFile       [260]uint16
 }
 
-// Enumerates process NAMES only, without opening game process memory.
+// Only check process names. No need to touch game memory.
 func cs2Running() bool {
 	snap, _, _ := pCreateToolhelp32Snapshot.Call(TH32CS_SNAPPROCESS, 0)
 	if snap == 0 || snap == ^uintptr(0) {
@@ -353,7 +348,7 @@ func ensureNVAPI() bool {
 }
 func tick(force bool) {
 	running := cs2Running()
-	// No game and nothing to restore: literally no NVIDIA API calls or color changes.
+	// Leave the desktop colors alone until CS2 starts.
 	if !running && len(app.original) == 0 {
 		app.lastApplied = -1
 		detail("Waiting for CS2", "Desktop color setting left untouched.")
@@ -372,7 +367,7 @@ func tick(force bool) {
 				detail("Unable to read original colors", app.lastError)
 				return
 			}
-			// SAVE THE RESTORE LEVEL BEFORE MAKING ANY DRIVER CHANGE.
+			// Save the original colors before changing anything.
 			if err = saveSession(original); err != nil {
 				app.lastError = "Could not save original levels: " + err.Error()
 				detail("Vibrance not changed", app.lastError)
@@ -390,7 +385,7 @@ func tick(force bool) {
 			if err := app.nv.apply(app.original, cfg.Game); err != nil {
 				app.lastError = err.Error()
 				detail("Unable to apply Digital Vibrance", app.lastError)
-				app.lastApplied = -1 // retry next polling interval
+				app.lastApplied = -1
 				return
 			}
 			app.lastApplied = cfg.Game
@@ -400,7 +395,7 @@ func tick(force bool) {
 		detail(fmt.Sprintf("CS2 running - %d%% Digital Vibrance", cfg.Game), "Restore original colors automatically when CS2 closes.")
 		return
 	}
-	// Game just closed (or the watcher restarted after a crash).
+	// CS2 closed. Restore the previous colors.
 	if !app.lastRestore.IsZero() && time.Since(app.lastRestore) < 5*time.Second {
 		return
 	}
@@ -447,7 +442,7 @@ func shutdown() {
 	if app.closing {
 		return
 	}
-	// Never silently discard recovery data if the driver cannot restore.
+	// Keep the recovery file if restoring fails.
 	if len(app.original) > 0 {
 		if ensureNVAPI() {
 			if err := app.nv.restore(app.original); err != nil {
@@ -530,7 +525,7 @@ func containsArg(s string) bool {
 	return false
 }
 func main() {
-	runtime.LockOSThread() // Windows message pump and NVAPI on the same thread
+	runtime.LockOSThread() // Keep Win32 events and NVAPI on the same thread.
 	if err := initConfig(); err != nil {
 		pMessageBoxW.Call(0, uintptr(unsafe.Pointer(ptr(err.Error()))), uintptr(unsafe.Pointer(ptr(appName))), 0)
 		return

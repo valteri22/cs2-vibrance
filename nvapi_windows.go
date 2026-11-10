@@ -11,7 +11,7 @@ import (
 	"unsafe"
 )
 
-// NV_DISPLAY_DVC_INFO_EX_V1: 20 bytes; verified against NVAPI wrappers.
+// Matches NV_DISPLAY_DVC_INFO_EX_V1 (20 bytes).
 type dvcInfo struct {
 	Version uint32
 	Current int32
@@ -87,8 +87,7 @@ func (n *nvidia) info(h uintptr) (dvcInfo, error) {
 	return v, nil
 }
 
-// Control Panel's default/neutral point is 50%. Interpolate around the
-// driver-reported default rather than assuming a fixed raw NVAPI scale.
+// 50% is neutral. Use the range reported by the driver.
 func levelForPercent(percent int, v dvcInfo) int32 {
 	p := clamp(percent)
 	lo, mid, hi := float64(v.Min), float64(v.Default), float64(v.Max)
