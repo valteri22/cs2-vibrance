@@ -6,7 +6,7 @@ A lightweight Windows tray app that automatically adjusts **NVIDIA Digital Vibra
 
 ### About
 
-Color settings are automatically applied when CS2 launches and unapplied when game closes. Settings are applied just from one slider and you can select an option for the program to start with Windows. It runs in the system tray silently, and checks for CS2 process every 1.5 seconds. Uses NVIDIA's driver API so no injection, networking or external Go dependencies are needed. Safe to use in matchmaking or FaceIT.
+Color settings are automatically applied when CS2 launches and unapplied when the game closes. Settings are applied just from one slider and you can select an option for the program to start with Windows. It runs in the system tray silently, and checks for CS2 process every 1.5 seconds. Uses NVIDIA's driver API so no injection, networking or external Go dependencies are needed. Safe to use in matchmaking or FaceIT.
 
 ### Build
 
