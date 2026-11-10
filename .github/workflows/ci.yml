@@ -1,0 +1,15 @@
+name: Verify source
+on: [push, pull_request]
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go test ./...
+      - run: go vet ./...
+      - run: go run ./tools/packicon
+      - run: go build -trimpath -ldflags="-H windowsgui" -o CS2Vibrance.exe .

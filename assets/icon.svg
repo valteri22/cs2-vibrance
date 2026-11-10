@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="CS2 Vibrance logo">
+  <rect x="0" y="0" width="256" height="256" rx="52" fill="#151920"/>
+  <path d="M67 73 L126 187" fill="none" stroke="#F2F5FA" stroke-width="32" stroke-linecap="round"/>
+  <path d="M189 73 L126 187" fill="none" stroke="#7193F8" stroke-width="32" stroke-linecap="round"/>
+</svg>
